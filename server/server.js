@@ -5,7 +5,7 @@ const bodyParser = require("body-parser");
 const app = express();
 
 const rutaPublica = path.resolve(__dirname, "../public");
-const port = process.env.PORT || 3000;
+const port = process.env.PORT || 3004;
 
 app.use( bodyParser.json() );
 app.use( bodyParser.urlencoded( {extended :true} ) );
