@@ -31,9 +31,12 @@ var titulo      = $('#titulo');
 var nuevoBtn    = $('#nuevo-btn');
 var salirBtn    = $('#salir-btn');
 var cancelarBtn = $('#cancel-btn');
+var cancelarNBtn = $('#cancel-btn-n');
+
 var postBtn     = $('#post-btn');
 var avatarSel   = $('#seleccion');
 var timeline    = $('#timeline');
+var not    = $('#not');
 
 var modal       = $('#modal');
 var modalAvatar = $('#modal-avatar');
@@ -42,8 +45,9 @@ var txtMensaje  = $('#txtMensaje');
 
 // El usuario, contiene el ID del hÃ©roe seleccionado
 var usuario;
-
-
+var notCuerpo;
+var notImg;
+var notUs;
 
 
 // ===== Codigo de la aplicaciÃ³n
@@ -84,9 +88,9 @@ function crearMensajeHTML(mensaje, personaje, lat, lng, foto) {
 
 
         <div class="avatar">
-            <img src="img/avatars/${ personaje }.png">
+            <img  onclick="enviarNotificacionMensaje('ALERTA TAREA','${mensaje}','img/avatars/${ personaje }.png')" src="img/avatars/${ personaje }.png">
         </div>
-        <div class="bubble-container">
+        <div class="bubble-container"  onclick="agregarHora('${personaje}','${mensaje}','img/avatars/${ personaje }.png')">
             <div class="bubble">
                 <h3>@${ personaje }</h3>
                 <br/>
@@ -120,6 +124,59 @@ function crearMensajeHTML(mensaje, personaje, lat, lng, foto) {
     $('.modal-mapa').remove();
 
     timeline.prepend(content);
+    cancelarBtn.click();
+
+}
+
+
+function crearNotificacionHTML(mensaje, personaje, lat, lng, foto) {
+
+    // console.log(mensaje, personaje, lat, lng);
+
+    var content =`
+    <li class="animated fadeIn fast"
+        data-user="${ personaje }"
+        data-mensaje="${ mensaje }"
+        data-tipo="mensaje">
+
+
+        <div class="avatar">
+            <img  onclick="enviarNotificacionMensaje('ALERTA TAREA','${mensaje}','img/avatars/${ personaje }.png')" src="img/avatars/${ personaje }.png">
+        </div>
+        <div class="bubble-container"  onclick="agregarHora('${personaje}','${mensaje}','img/avatars/${ personaje }.png')">
+            <div class="bubble">
+                <h3>@${ personaje }</h3>
+                <br/>
+                ${ mensaje }
+                `;
+    
+    if ( foto ) {
+        content += `
+                <br>
+                <img class="foto-mensaje" src="${ foto }">
+        `;
+    }
+        
+    content += `</div>        
+                <div class="arrow"></div>
+            </div>
+        </li>
+    `;
+
+    
+    // si existe la latitud y longitud, 
+    // llamamos la funcion para crear el mapa
+    if ( lat ) {
+        crearMensajeMapa( lat, lng, personaje );
+    }
+    
+    // Borramos la latitud y longitud 
+    lat = null;
+    lng = null;
+
+    $('.modal-mapa').remove();
+
+    not.prepend(content);
     cancelarBtn.click();
 
 }
@@ -176,6 +233,9 @@ nuevoBtn.on('click', function() {
     }, 200 );
 
 });
+cancelarNBtn.on('click', function() {
+    cancelarBtn.click();
+});
 
 // Boton de cancelar mensaje
 cancelarBtn.on('click', function() {
@@ -187,6 +247,13 @@ cancelarBtn.on('click', function() {
              modal.addClass('oculto');
              txtMensaje.val('');
          });
+    }
+    if(!not.hasClass('oculto')){
+    $('#hora').addClass("oculto");
+    not.addClass('oculto');
+    $('#post-btn-h').addClass("oculto");
+    timeline.removeClass('oculto');     
+    cancelarNBtn.addClass("oculto")   
     }
 });
 
@@ -396,6 +463,75 @@ function enviarNotificacion() {
     };
 
 }
+function agregarHora(notUsuario,cuerpo,imagen){
+notImg=imagen;
+notCuerpo=cuerpo;
+notUs=notUsuario;
+$('#hora').removeClass("oculto");
+not.removeClass('oculto');
+$('#post-btn-h').removeClass("oculto");
+timeline.addClass('oculto');      
+salirBtn.addClass('oculto');  
+cancelarNBtn.removeClass('oculto');
+}
+function enviarNotificacionHora(hora,horaCompleta){
+    if ( hora === 0 ) {
+        cancelarBtn.click();
+        return;
+    }
+
+    const notificationOpts = {
+        body: notCuerpo+": "+horaCompleta,
+        icon: notImg,
+        timestamp:hora
+    };
+    
+    var data  = {
+        user: notUs,
+        mensaje :notCuerpo+": "+horaCompleta,
+        lat: null,
+        lng: null,
+        foto: null
+    }
+
+
+    fetch("/api", {
+        method : "POST",
+        headers : {
+            "Content-Type" : "application/json"
+        },
+        body : JSON.stringify( data )
+    })
+    .then( resp => resp.json() )
+    .then( resp => console.log("funciona:", resp))
+    .catch( error => console.log("Falla: ", error) );
+
+    crearNotificacionHTML( data.mensaje, data.user, null, null, null );
+
+    const n = new Notification('NOTIFICACION PROGRAMADA', notificationOpts);
+
+    // Por si se requiere realizar una acción cuando se de clic sobre la notificación
+    n.onclick = () => {
+        console.log('Le diste clic a la notificacion');
+    };
+
+    
+}
+function enviarNotificacionMensaje(cuerpo,titulo,imagen) {
+
+    const notificationOpts = {
+        body: cuerpo,
+        icon: imagen
+    };
+
+    const n = new Notification(titulo, notificationOpts);
+
+    // Por si se requiere realizar una acción cuando se de clic sobre la notificación
+    n.onclick = () => {
+        console.log('Le diste clic a la notificacion');
+    };
+
+}
 
 function verificaSuscripcion( activadas ) {
 
@@ -423,7 +559,11 @@ function getPublicKey() {
 
 }
 
-
+$("#post-btn-h").on('click',()=>{ 
+    var hora=$("#iDate").val();
+    const dt = Date.parse(hora);  
+      enviarNotificacionHora(dt,hora);
+});
 btnDesactivadas.on( 'click', () => {
 
     // verificar si ya se registro el service worker
